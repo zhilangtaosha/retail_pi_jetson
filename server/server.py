@@ -8,8 +8,10 @@ simple POC server for:
 import os
 import time
 from datetime import datetime
-import json, base64, io
-import logging 
+import json
+import base64
+import io
+import logging
 import configparser
 import cv2
 import numpy as np
@@ -17,6 +19,7 @@ from bson import ObjectId
 from pymongo import MongoClient
 from sys import argv
 from http.server import BaseHTTPRequestHandler, HTTPServer
+
 
 class S(BaseHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
@@ -27,12 +30,14 @@ class S(BaseHTTPRequestHandler):
         self.face_logging = self.config["SERVICE"]['Face_logging']
         super().__init__(*args, **kwargs)
 
-    def do_OPTIONS(self):           
-        self.send_response(200, "ok")       
-        self.send_header('Access-Control-Allow-Origin', '*')                
-        self.send_header("Access-Control-Allow-Credentials", "true")                
-        self.send_header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,PATCH,OPTIONS')
-        self.send_header("Access-Control-Allow-Headers", "Content-Range, Content-Disposition, Authorizaion, Access-Control-Allow-Headers, Origin, Accept, X-Requested-With, Content-Type, Access-Control-Request-Method, Access-Control-Request-Headers") 
+    def do_OPTIONS(self):
+        self.send_response(200, "ok")
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header("Access-Control-Allow-Credentials", "true")
+        self.send_header('Access-Control-Allow-Methods',
+                         'GET,PUT,POST,DELETE,PATCH,OPTIONS')
+        self.send_header("Access-Control-Allow-Headers",
+                         "Content-Range, Content-Disposition, Authorizaion, Access-Control-Allow-Headers, Origin, Accept, X-Requested-With, Content-Type, Access-Control-Request-Method, Access-Control-Request-Headers")
         self.end_headers()
         response = {
             'error_code': 0
@@ -68,11 +73,12 @@ class S(BaseHTTPRequestHandler):
         now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         for i, person in enumerate(data_dict):
             faces = person['faces']
-            for face in faces:
+            for j, face in enumerate(faces):
                 face_bin = base64.b64decode(face)
                 face_stream = io.BytesIO(face_bin)
-                face_cv = cv2.imdecode(np.fromstring(face_stream.read(), np.uint8), 1)
-                img_name = "{}_{}{}".format(now, i, ".jpg")
+                face_cv = cv2.imdecode(np.fromstring(
+                    face_stream.read(), np.uint8), 1)
+                img_name = "{}_{}_{}{}".format(now, i, j, ".jpg")
                 img_name = img_name.replace("-", "_")
                 img_name = img_name.replace(":", "_")
                 img_name = img_name.replace(" ", "_")
@@ -105,7 +111,6 @@ class S(BaseHTTPRequestHandler):
         self._set_response()
         self.wfile.write("GET request for {}".format(
             self.path).encode('utf-8'))
-
 
     def do_POST(self):
         content_length = int(self.headers['Content-Length'])
