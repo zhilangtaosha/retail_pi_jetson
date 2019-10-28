@@ -1,8 +1,9 @@
 """
-v1.0, main changes including:
+v1.1, main changes including:
  - periodical server upload, 
  - FQC only when hardware are free, 
  - change to camera max resolution in active mode / multi-threading face detection during active capture
+ - Multiprocess for read from camera and detection
 4 main parts: face detection, face recognition, task scheduler, face clustering
 """
 import cv2
@@ -13,6 +14,7 @@ import ast
 import time
 import base64
 import psutil
+import multiprocessing
 # from bson import ObjectId
 # from pymongo import MongoClient
 from datetime import datetime

@@ -17,16 +17,17 @@ def cosineDistance(a, b):
 
 def good_head_angle(y, p, r, angle_min, angle_max):
     """
-    good head angle would be looking directly to the camera, give or take 
+    good head angle would be looking directly to the camera, give or take
     some degree each
     """
-    if ((angle_min[0] < y) and (angle_max[0] > y) 
-        and (angle_min[1] < p) and (angle_max[1] > p) 
+    if ((angle_min[0] < y) and (angle_max[0] > y)
+        and (angle_min[1] < p) and (angle_max[1] > p)
         and(angle_min[2] < r) and (angle_max[2] > r)):
         return True
     return False
 
 def b64_encode(img):
+    # ret, buffer = cv2.imencode('.jpg', img, params=(cv2.IMWRITE_JPEG_QUALITY, 30))
     ret, buffer = cv2.imencode('.jpg', img)
     b64_buffer = base64.b64encode(buffer).decode('utf-8')
     return b64_buffer

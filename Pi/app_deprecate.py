@@ -1,9 +1,7 @@
 """
-v1.0, main changes including:
- - periodical server upload, 
- - FQC only when hardware are free, 
- - change to camera max resolution in active mode / multi-threading face detection during active capture
+a protoptype application of the FQC (face-queue-clustering) algorithm
 4 main parts: face detection, face recognition, task scheduler, face clustering
+
 """
 import cv2
 import numpy as np
@@ -12,7 +10,6 @@ import os
 import ast
 import time
 import base64
-import psutil
 # from bson import ObjectId
 # from pymongo import MongoClient
 from datetime import datetime
@@ -21,6 +18,8 @@ from face_det import FaceDetection
 from clustering import face_clustering
 from utils import b64_encode, face_marginalize
 from xnet import Xnet
+# from head_pose_est import HeadPoseEst
+# from face_search import bruteforce
 
 
 class FaceQueueClustering(object):
@@ -38,10 +37,6 @@ class FaceQueueClustering(object):
         self.face_lap_min_var = float(config["FACE_CONSOLIDATION"]['Laplacian_min_variance'])
         self.face_margin_w_ratio = float(config["FACE_CONSOLIDATION"]['Face_margin_w_ratio'])
         self.face_margin_h_ratio = float(config["FACE_CONSOLIDATION"]['Face_margin_h_ratio'])
-        self.cam_width = int(config["CAMERA"]['Width'])
-        self.cam_height = int(config["CAMERA"]['Height'])
-        self.cam = cv2.VideoCapture(0)
-        self.set_cam_params()
         self.xnet = Xnet(config)
         self.unprocess_face_queue = []
         self.face_queue = []
@@ -52,67 +47,51 @@ class FaceQueueClustering(object):
         # self.num_cams = int(config["CAMERA"]['Num_cams'])
         # self.cam_ids = ast.literal_eval(config["CAMERA"]['Id'])
 
-    def read_frame(self):
-        s = time.time()
-        ret, frame = self.cam.read()
-
-        # Test picam
-        # ret = True
-        # self.picam.capture(self.placeholder, 'bgr')
-        # frame = self.placeholder
-        print("read cam time", time.time() - s)
-        # print(frame.shape)
-        if not ret:
-            # dead cam
-            self.cam = cv2.VideoCapture(0)
-            self.set_cam_params()
-            time.sleep(3.000) # some delay to init cam
-            # cam = cv2.VideoCapture(0 + cv2.CAP_DSHOW)
-            return None
-        return frame
-
     def serve(self):
-        # self.picam.start_preview()
-        # time.sleep(2)
+        # TODO: multi-cam central processing
+        # cams = [
+        #     cv2.VideoCapture(i)
+        #     for i in self.cam_ids
+        # ]
+
+        cam = cv2.VideoCapture(0)
+        cam.set(3, 1920)
+        cam.set(4, 1080)
+        cam.set(cv2.CAP_PROP_BUFFERSIZE, 3)
         while(True):
-            print("RAM", psutil.virtual_memory()[2])
+            ret, frame = cam.read()
+            print(frame.shape)
+            if not ret:
+                # dead cam
+                cam = cv2.VideoCapture(0)
+                time.sleep(3.000) # some delay to init cam
+                # cam = cv2.VideoCapture(0 + cv2.CAP_DSHOW)
+                continue
             if (time.time() - self.last_detected_face_time) > self.standby_detection_delay:
-                frame = self.read_frame()
-                if frame is None:
-                    continue
+                # TODO: clustering and upload mode
                 st = time.time()
                 self.standby_serve(frame)
                 print("standby", time.time() - st)
             else:
-                frame = self.read_frame()
-                if frame is None:
-                    continue
                 st = time.time()
                 self.active_serve(frame)
                 print("active", time.time() - st)
             if (time.time() - self.last_clustering_time) > self.clustering_upload_delay:
-                self.feat_queue = []
-                self.face_queue = []
-            #     st = time.time()
-            #     self.cluster_upload()
-            #     print("clustering", time.time() - st)
+                st = time.time()
+                self.cluster_upload()
+                print("clustering", time.time() - st)
 
         return 0
-
-    def set_cam_params(self):
-        self.cam.set(3, self.cam_width)
-        self.cam.set(4, self.cam_height)
-        self.cam.set(cv2.CAP_PROP_BUFFERSIZE, 3)
 
     def standby_serve(self, frame):
         """
         1 face detection + n face analysis from queue
         """
         self.process_queue()
-        self.detect_queue(frame, mode='standby')
+        self.detect_queue(frame)
         return 0
 
-    def active_serve(self, frame, mode='active'):
+    def active_serve(self, frame):
         """
         1 face detection, save face to memory
         TODO: memory management, e.g. save to disk before OOM
@@ -120,30 +99,27 @@ class FaceQueueClustering(object):
         self.detect_queue(frame)
         return 0
 
-    def detect_queue(self, frame, mode='active'):
+    def detect_queue(self, frame):
         face_bboxes = self.face_detect.inference(frame)
         if len(face_bboxes) == 0:
             return 1
+        # TODO: blurry analysis, head angle estimate
         self.last_detected_face_time = time.time()
-        if mode == 'standby':
-            return 0
         # print(face_bboxes)
         for b in face_bboxes:
             if (b[3] > b[1]) and (b[2] > b[0]):
                 crop = frame[b[1]:b[3], b[0]:b[2], :]
                 # detect blurr, headpose est
                 # TODO: head pose est, move to separate function/class
-                crop = face_marginalize(crop, self.face_margin_w_ratio, self.face_margin_h_ratio)
                 blur_face = cv2.resize(crop, (112, 112))
                 blur_face_var = cv2.Laplacian(blur_face, cv2.CV_64F).var()
                 if blur_face_var > self.face_lap_min_var:
                     self.unprocess_face_queue.append(
                         {
-                            'crop': blur_face,
+                            'crop': crop,
                             'time': self.last_detected_face_time
                         }
-                    )
-                    cv2.imwrite("face.jpg", crop)
+            )
         return 0
 
     def process_queue(self):
@@ -172,7 +148,7 @@ class FaceQueueClustering(object):
         """
         cluster face queue into different people
         send several imgs and info per person to server
-        # TODO: separate into cluster and upload functions
+        # TODO: better time handling (timezone, cam location based, etc)
         """
         if len(self.feat_queue) == 0:
             print("no human")
