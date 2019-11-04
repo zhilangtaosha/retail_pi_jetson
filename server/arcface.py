@@ -87,7 +87,6 @@ class ArcFace(object):
     def extend_inference(self, unique_faces):
         """
         extend unique faces list with embedded feature for each face
-        challenge: 15min implementation: 10:40
         TODO: optimize ugly loop code
         """
         if not unique_faces:
@@ -119,7 +118,7 @@ class ArcFace(object):
                                 }
                                 for f in same_fid
                             ],
-                            'time': unique_faces[last_fid]
+                            'time': unique_faces[last_fid]['time']
                         }
                     )
                 same_fid = [i]
@@ -137,8 +136,7 @@ class ArcFace(object):
                         }
                         for f in same_fid
                     ],
-                    'time': unique_faces[last_fid]
+                    'time': unique_faces[last_fid]['time']
                 }
             )
-            same_fid = [i]
         return ret_unique_faces
