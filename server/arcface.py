@@ -2,6 +2,7 @@ import tensorrt as trt
 import cv2
 import numpy as np
 import os
+import base64, io
 import time
 import configparser
 import common
@@ -82,3 +83,62 @@ class ArcFace(object):
         batch_imgs = images[margin:]
         ret_feats[margin:] = self.inference_batch(batch_imgs, len(batch_imgs))
         return ret_feats
+
+    def extend_inference(self, unique_faces):
+        """
+        extend unique faces list with embedded feature for each face
+        challenge: 15min implementation: 10:40
+        TODO: optimize ugly loop code
+        """
+        if not unique_faces:
+            return []
+        faces = []
+        fids = []
+        for i, uf in enumerate(unique_faces):
+            for face in uf['faces']:
+                face_bin = base64.b64decode(face)
+                face_stream = io.BytesIO(face_bin)
+                face_cv = cv2.imdecode(np.fromstring(
+                    face_stream.read(), np.uint8), 1)
+                faces.append(face_cv)
+                fids.append(i)
+        feats = self.inference(faces)
+        ret_unique_faces = []
+        last_fid = -1
+        same_fid = []
+        for i, fid in enumerate(fids):
+            if last_fid != fid:
+                # update last same fid list
+                if len(same_fid): 
+                    ret_unique_faces.append(
+                        {
+                            'person': [
+                                {
+                                    'face': faces[f],
+                                    'feat': feats[f],
+                                }
+                                for f in same_fid
+                            ],
+                            'time': unique_faces[last_fid]
+                        }
+                    )
+                same_fid = [i]
+                last_fid = fid
+            else:
+                same_fid.append(i)
+        # add last person
+        if len(same_fid): 
+            ret_unique_faces.append(
+                {
+                    'person': [
+                        {
+                            'face': faces[f],
+                            'feat': feats[f],
+                        }
+                        for f in same_fid
+                    ],
+                    'time': unique_faces[last_fid]
+                }
+            )
+            same_fid = [i]
+        return ret_unique_faces

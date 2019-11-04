@@ -48,10 +48,13 @@ def cluster_raw_faces(feats, raw_data, max_img_per_person=3):
             chosen_ids = np.asarray([0])
         unique_faces.append(
             {
-                'faces': [
-                    raw_data[cli_feat_ids[i]]['face']
+                'person': [
+                    {
+                        'faces': raw_data[cli_feat_ids[i]]['face'],
+                        'feats': feats[cli_feat_ids[i]],
+                    }
                     for i in chosen_ids
-                ],
+                ], 
                 'time': [
                     raw_data[i]['time']
                     for i in cli_feat_ids
