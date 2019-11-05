@@ -11,42 +11,65 @@ class FaceDatabase(object):
         url = self.config["MONGO"]['Url']
         port = int(self.config["MONGO"]['Port'])
         db_name = self.config["MONGO"]['Database']
-        col_name = self.config["MONGO"]['FaceCollection']
+        face_col_name = self.config["MONGO"]['FaceCollection']
+        log_col_name = self.config["MONGO"]['LogCollection']
         self.customer_img_dir = self.config["IMG_DIR"]['Customer']
         self.employee_img_dir = self.config["IMG_DIR"]['Employee']
         self.log_img_dir = self.config["IMG_DIR"]['Log']
         self.client = MongoClient(url, port)
         self.db = self.client[db_name]
-        self.collection = self.db[col_name]
+        self.face_collection = self.db[face_col_name]
+        self.log_collection = self.db[log_col_name]
 
     def loadFaces(self):
         """
         return cursor and collection of face database
         """
         # get the whole collection
-        people = list(self.collection.find())
+        people = list(self.face_collection.find())
         return people
 
     def loadLogs(self):
         """
-        TODO
         return cursor and collection of log database
         """
-        return 0
+        logs = list(self.log_collection.find())
+        return logs
 
-    def newPeopleLog(self, unique_people):
+    def newPeopleLog(self, known_people, new_people):
         """
-        TODO
         log new people
         """
+        for p in known_people:
+            new_log = {
+                'face_id': p['id'],
+                'time': p['time']
+            }
+            p_id = self.log_collection.insert_one(new_log).inserted_id
+            self.log_collection.update_one({'_id': p_id}, {"$set": new_log}, upsert=False)
+            img_name = f"{int(time.time())}_{str(p['id'])}.jpg"
+            img_path = os.path.join(self.log_img_dir, img_name)
+            # choose first face for each person. TODO: complicated saving stuff go here
+            cv2.imwrite(img_path, p['person'][0]['face'])
+
+        for p in new_people:
+            new_log = {
+                'face_id': p['id'],
+                'time': p['time']
+            }
+            p_id = self.log_collection.insert_one(new_log).inserted_id
+            self.log_collection.update_one({'_id': p_id}, {"$set": new_log}, upsert=False)
+            img_name = f"{int(time.time())}_{str(p['id'])}.jpg"
+            img_path = os.path.join(self.log_img_dir, img_name)
+            # choose first face for each person. TODO: complicated saving stuff go here
+            cv2.imwrite(img_path, p['person'][0]['face'])
         return 0
 
     def addNewFaces(self, new_people):
         """    
-        TODO
         update database with new people data
         """    
-        for np in new_people:
+        for j, np in enumerate(new_people):
             new_face = {
                 'feats': [np['person'][i]['feat'].tolist() for i in range(len(np['person']))],
                 'age': np['age'],
@@ -54,9 +77,9 @@ class FaceDatabase(object):
                 'create_time': time.time(),
             }
             # insert to Mongo
-            p_id = self.collection.insert_one(new_face).inserted_id
+            p_id = self.face_collection.insert_one(new_face).inserted_id
             # commit changes
-            self.collection.update_one({'_id': p_id}, {"$set": new_face}, upsert=False)
+            self.face_collection.update_one({'_id': p_id}, {"$set": new_face}, upsert=False)
             # create account imgs dir
             new_id = str(p_id)
             print("new customer: ", new_id)
@@ -66,4 +89,5 @@ class FaceDatabase(object):
             for i, p in enumerate(np['person']):
                 img_path = os.path.join(img_dir, f"{i}.jpg")
                 cv2.imwrite(img_path, p['face'])
-        return 0
+            new_people[j].update({'id': new_id})
+        return new_people

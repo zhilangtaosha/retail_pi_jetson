@@ -19,6 +19,7 @@ def cluster_raw_faces(feats, raw_data, max_img_per_person=3):
     return list of unique faces based on raw data
     """
     unique_faces = []
+    print(feats)
     feat_num, feat_size = feats.shape
     # clustering
     if feat_num == 0:

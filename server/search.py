@@ -15,6 +15,7 @@ def bruteforce(qfe, fdb, threshold):
             if (cos_dst <= threshold) and (cos_dst < min_dst):
                 min_dst = cos_dst
                 best_match = doc['_id']
+    print("cos dst: ", min_dst)
     return best_match, min_dst
     
 def find_people(q, plist):

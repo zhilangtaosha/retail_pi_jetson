@@ -19,12 +19,14 @@ from age_gender import AgeGenderEstimator
 from clustering import cluster_raw_faces
 from database import FaceDatabase
 from search import bruteforce, unique_people_search
-# from utils import good_head_angle
+from head_pose_est import HeadPoseEst
+from utils import good_head_angle
 
 
 class Miris(BaseModel):
     unique_faces: list
     raw_faces: list
+    time: float
 
 
 # server modules
@@ -33,6 +35,7 @@ app = FastAPI()
 # Vision modules
 face_embed = ArcFace()
 age_gender_est = AgeGenderEstimator()
+headpose = HeadPoseEst()
 
 # database modules
 FDC = FaceDatabase()
@@ -46,12 +49,14 @@ async def root():
 @app.post("/face/log/")
 async def log_faces(item: Miris):
     logging.info(f"unique faces: {len(item.unique_faces)}, raw_faces: {len(item.raw_faces)}")
-    print("TIME: ", datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+    # print("TIME: ", datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+    print("UPLOAD TIME: ", item.time)
+    print("RECEIVE TIME: ", time.time())
     # process raw faces into unique faces
     feats = []
-    raw_faces= []
+    raw_faces = []
     s = time.time()
-    # for r_face in item.raw_faces:
+    # remove bad data from raw faces
     for i in range(len(item.raw_faces)):
         face_bin = base64.b64decode(item.raw_faces[i]['face'])
         face_stream = io.BytesIO(face_bin)
@@ -60,12 +65,14 @@ async def log_faces(item: Miris):
         raw_faces.append(face_cv)
         item.raw_faces[i]['face'] = face_cv
         # yaw, pitch, roll = self.head_pose.inference(face_cv)
+    print("good face before", len(raw_faces))
+    raw_faces, item.raw_faces = headpose.remove_bad_pose(raw_faces, item.raw_faces)
+    print("good face after", len(raw_faces))
     print("decode time", time.time() - s)
     s = time.time()
     feats = face_embed.inference(raw_faces)
     print("arcface time", time.time() - s)
     refined_unique_faces = cluster_raw_faces(feats, item.raw_faces)
-    # TODO: test the func below
     s = time.time()
     uploaded_unique_faces = face_embed.extend_inference(item.unique_faces)
     print("upload face inference time", time.time() - s)
@@ -94,7 +101,7 @@ async def log_faces(item: Miris):
     FDC.addNewFaces(new_people)
 
     # # log unique people 
-    # FaceDatabase.newPeopleLog(known_people, new_people)
+    FDC.newPeopleLog(known_people, new_people)
 
 
     item_dict = {
@@ -103,6 +110,7 @@ async def log_faces(item: Miris):
         'arcface feats': feats.shape,
         'total_unique_faces': len(refined_unique_faces),
     }
+    time.sleep(4)
     return item_dict
 
 

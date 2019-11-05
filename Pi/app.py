@@ -40,6 +40,7 @@ class FaceQueueClustering(object):
         self.face_lap_min_var = float(config["FACE_CONSOLIDATION"]['Laplacian_min_variance'])
         self.face_margin_w_ratio = float(config["FACE_CONSOLIDATION"]['Face_margin_w_ratio'])
         self.face_margin_h_ratio = float(config["FACE_CONSOLIDATION"]['Face_margin_h_ratio'])
+        self.task_await = float(config["TASK_SCHEDULER"]['Task_await'])
         self.xnet_timeout = float(self.config["XNET"]['Timeout'])
         self.cam_width = int(config["CAMERA"]['Width'])
         self.cam_height = int(config["CAMERA"]['Height'])
@@ -90,8 +91,10 @@ class FaceQueueClustering(object):
         return 0
 
     async def sense_process(self, duration):
+        await asyncio.sleep(self.task_await)
         init_time = time.time()
         while(self.cam.isOpened()):
+            print("unprocess: ", len(self.unprocess_face_queue), "processed: ", len(self.face_queue))
             # get RAM info, TODO: save to disk when OOM
             # print("RAM", psutil.virtual_memory()[2])
             if (time.time() - init_time) > duration:

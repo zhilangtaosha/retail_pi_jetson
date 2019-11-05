@@ -66,8 +66,10 @@ async def loop(deadline):
         # await asyncio.sleep(0.5)
 
 async def large_images_sync(url):
+    img = cv2.imread("test3.jpg")
+    img = cv2.resize(img, (112, 112))
     s = time.time()
-    img = np.zeros((112, 112, 3))
+    # img = np.zeros((112, 112, 3))
     h, w, c = img.shape
     single_img_size = h*w*c
     total_file_size = 4e6 # 45 Mb
