@@ -15,13 +15,11 @@ import base64
 import psutil
 import asyncio
 import aiohttp
-# from bson import ObjectId
-# from pymongo import MongoClient
 from datetime import datetime
 from arcface import FaceEmbedding
 from face_det import FaceDetection
 from clustering import face_clustering
-from utils import b64_encode, face_marginalize
+from utils import b64_encode, face_marginalize, face_crop
 from xnet import Xnet
 
 
@@ -44,6 +42,9 @@ class FaceQueueClustering(object):
         self.xnet_timeout = float(self.config["XNET"]['Timeout'])
         self.cam_width = int(config["CAMERA"]['Width'])
         self.cam_height = int(config["CAMERA"]['Height'])
+        self.ROI = ast.literal_eval(config["CAMERA"]["ROI"])
+        self.img_upload_width = int(config["UPLOAD"]['Img_width'])
+        self.img_upload_height = int(config["UPLOAD"]['Img_height'])
         self.cam = cv2.VideoCapture(0)
         self.set_cam_params()
         self.xnet = Xnet(config)
@@ -70,6 +71,9 @@ class FaceQueueClustering(object):
             time.sleep(3.000) # some delay to init cam
             # cam = cv2.VideoCapture(0 + cv2.CAP_DSHOW)
             return None
+        r = self.ROI
+        frame = frame[r[0]:r[2], r[1]:r[3], :]
+        # cv2.imwrite("frame.jpg", frame)
         return frame
 
     def serve(self):
@@ -148,16 +152,22 @@ class FaceQueueClustering(object):
         # print(face_bboxes)
         for b in face_bboxes:
             if (b[3] > b[1]) and (b[2] > b[0]):
-                crop = frame[b[1]:b[3], b[0]:b[2], :]
                 # detect blurr, headpose est
-                # TODO: head pose est, move to separate function/class
-                crop = face_marginalize(crop, self.face_margin_w_ratio, self.face_margin_h_ratio)
+                # crop = frame[b[1]:b[3], b[0]:b[2], :]
+                # crop = face_marginalize(crop, self.face_margin_w_ratio, self.face_margin_h_ratio)
+                crop = face_crop(frame, b, 0, self.face_margin_h_ratio)
                 blur_face = cv2.resize(crop, (112, 112))
                 blur_face_var = cv2.Laplacian(blur_face, cv2.CV_64F).var()
                 if blur_face_var > self.face_lap_min_var:
                     self.unprocess_face_queue.append(
                         {
-                            'crop': blur_face,
+                            'crop': cv2.resize(
+                                crop, 
+                                (
+                                    self.img_upload_height,
+                                    self.img_upload_width
+                                )
+                            ),
                             'time': self.last_detected_face_time
                         }
                     )

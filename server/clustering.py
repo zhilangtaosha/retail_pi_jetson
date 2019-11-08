@@ -19,15 +19,14 @@ def cluster_raw_faces(feats, raw_data, max_img_per_person=3):
     return list of unique faces based on raw data
     """
     unique_faces = []
-    print(feats)
     feat_num, feat_size = feats.shape
     # clustering
     if feat_num == 0:
-        return None
+        return []
     labels = face_clustering(feats)
     class_ids = np.unique(labels)
-    print("unique ", class_ids)
-    print(labels)
+    # print("unique ", class_ids)
+    print("labels: ", labels)
     for cli in class_ids:
         if cli == -1:
             # noise
@@ -51,7 +50,7 @@ def cluster_raw_faces(feats, raw_data, max_img_per_person=3):
             {
                 'person': [
                     {
-                        'face': raw_data[cli_feat_ids[i]]['face'],
+                        'face': raw_data[cli_feat_ids[i]]['face_crop'],
                         'feat': feats[cli_feat_ids[i]],
                     }
                     for i in chosen_ids

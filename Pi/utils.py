@@ -42,3 +42,20 @@ def face_marginalize(face, margin_w_ratio, margin_h_ratio):
     wm = int(w * margin_w_ratio)
     hm = int(h * margin_h_ratio)
     return face[hm:h-hm, wm:w-wm, :]
+
+def face_crop(frame, box, margin_w_ratio, margin_h_ratio):
+    """
+    crop face from frame with bounding box, margin
+    """
+    w = box[2] - box[0]
+    h = box[3] - box[1]
+    fh, fw, _ = frame.shape
+    if (w <= 0) or (h <= 0):
+        return None
+    margin_w = w * margin_w_ratio
+    margin_h = h * margin_h_ratio
+    x0 = int(max(box[0]-margin_w, 0))
+    y0 = int(max(box[1]-margin_h, 0))
+    x1 = int(min(box[2]+margin_w, fw))
+    y1 = int(min(box[3]+margin_h, fh))
+    return frame[y0:y1, x0:x1, :]

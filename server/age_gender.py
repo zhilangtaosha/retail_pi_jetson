@@ -46,7 +46,7 @@ class AgeGenderEstimator(object):
         img_batch = np.zeros((batch_size, 3, self.img_size, self.img_size))
         for i, img in enumerate(images):
             img = cv2.resize(img, (self.img_size, self.img_size))
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            # img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
             img = img.transpose(2, 0, 1)
             img_batch[i] = img
 

@@ -66,10 +66,10 @@ class ArcFace(object):
         get images list of arbitrary length, separate into small enough 
         batches and doing batch inference
         """
-        if len(images) == 0:
-            return np.asarray([])
-        bs = self.batch_size
         ret_feats = np.zeros((len(images), self.feat_size))
+        if len(images) == 0:
+            return ret_feats
+        bs = self.batch_size
         queue_length = int(len(images)/self.batch_size)
         # within batch size
         for i in range(queue_length):

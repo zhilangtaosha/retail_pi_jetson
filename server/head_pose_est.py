@@ -129,8 +129,6 @@ class HeadPoseEst(object):
                 hp_idx_check[i] = 1
             else:
                 print(angle)
-        print(hp_idx_check)
-        print(blur_idx_check)
         hp_idx_check = hp_idx_check * blur_idx_check
         good_face = [
             face for i, face in enumerate(raw_faces) 
