@@ -59,3 +59,21 @@ def face_crop(frame, box, margin_w_ratio, margin_h_ratio):
     x1 = int(min(box[2]+margin_w, fw))
     y1 = int(min(box[3]+margin_h, fh))
     return frame[y0:y1, x0:x1, :]
+
+def resize_keepres(image, input_height, input_width):
+    """
+    resize image, keeping original resolution (0 padding borders)
+    """
+    ret_img = np.zeros((input_height, input_width, 3))
+    img_height, img_width, _ = image.shape
+    if img_height / img_width > input_height / input_width:
+        resize_scale = input_height / img_height
+        input_image = cv2.resize(image, (0, 0), fx=resize_scale, fy=resize_scale)
+        left_pad = int((input_width - input_image.shape[1]) / 2)
+        ret_img[:, left_pad:left_pad + input_image.shape[1], :] = input_image
+    else:
+        resize_scale = input_width / image.shape[1]
+        input_image = cv2.resize(image, (0, 0), fx=resize_scale, fy=resize_scale)
+        top_pad = int((input_height - input_image.shape[0]) / 2)
+        ret_img[top_pad:top_pad + input_image.shape[0], :, :] = input_image
+    return ret_img

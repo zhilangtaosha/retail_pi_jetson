@@ -1,5 +1,5 @@
 import numpy as np
-from utils import cosineDistance
+from utils import cosineDistance, merge_data
 
 def bruteforce(qfe, fdb, threshold):
     """
@@ -24,14 +24,6 @@ def find_people(q, plist):
         if q is p['id']:
             return i
     return -1
-
-def merge_data(main_dict, merge_dict):
-    """
-    merge data from 2 list
-    TODO deal with new data
-    """
-    main_dict['time'] += merge_dict['time']
-    return main_dict
 
 
 def unique_people_search(uuf, ruf, fdb, threshold):
@@ -71,7 +63,8 @@ def unique_people_search(uuf, ruf, fdb, threshold):
                 p.update({'id': best_match})
                 known_people.append(p)
             else:
-                known_people[l_id] = merge_data(known_people[l_id], p)
+                # same person
+                known_people[l_id] = merge_data(known_people[l_id], p, ['time'])
         else:
             # new people
             unidentified_people.append(p)

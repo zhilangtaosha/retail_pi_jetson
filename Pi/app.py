@@ -19,7 +19,7 @@ from datetime import datetime
 from arcface import FaceEmbedding
 from face_det import FaceDetection
 from clustering import face_clustering
-from utils import b64_encode, face_marginalize, face_crop
+from utils import b64_encode, face_marginalize, face_crop, resize_keepres
 from xnet import Xnet
 
 
@@ -161,13 +161,14 @@ class FaceQueueClustering(object):
                 if blur_face_var > self.face_lap_min_var:
                     self.unprocess_face_queue.append(
                         {
-                            'crop': cv2.resize(
-                                crop, 
-                                (
-                                    self.img_upload_height,
-                                    self.img_upload_width
-                                )
-                            ),
+                            # 'crop': cv2.resize(
+                            #     crop, 
+                            #     (
+                            #         self.img_upload_height,
+                            #         self.img_upload_width
+                            #     )
+                            # ),
+                            'crop': resize_keepres(crop, self.img_upload_height, self.img_upload_width),
                             'time': self.last_detected_face_time
                         }
                     )

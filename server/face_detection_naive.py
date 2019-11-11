@@ -171,13 +171,13 @@ class FaceDetection(object):
             self.img_width_sm*self.canvas_col, 
             3
         )) 
-        print(canvas.shape)
+        # print(canvas.shape)
         for c in range(canvas_num):
             # paste img on canvas
             for i in range(self.canvas_col):
                 for j in range(self.canvas_row):
                     img_id = int((c*img_per_canvas+i*self.canvas_row+j) % img_num)
-                    print(c, i, j, img_id, images[img_id].shape)
+                    # print(c, i, j, img_id, images[img_id].shape)
                     canvas[
                         j*self.img_height_sm:(j+1)*self.img_height_sm,
                         i*self.img_width_sm:(i+1)*self.img_width_sm,
@@ -196,7 +196,7 @@ class FaceDetection(object):
                 if img_id < img_num:
                     face_crop = canvas[y0:y1, x0:x1, :]
                     cv2.imwrite(f"images/debug/{c}_{bid}.jpg", face_crop)
-                    print(face_crop.shape)
+                    # print(face_crop.shape)
                     ret_imgs.append(face_crop)
                     ret_imgs_info.append(images_info[img_id])
                     ret_imgs_info[-1].update(

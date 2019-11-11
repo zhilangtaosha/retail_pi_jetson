@@ -92,3 +92,12 @@ def NMS(boxes, overlap_threshold):
     # return only the bounding boxes that were picked using the
     # integer data type
     return boxes[pick]
+
+def merge_data(main_dict, merge_dict, keys):
+    """
+    merge data from 2 list
+    """
+    # main_dict['time'] += merge_dict['time']
+    for key in keys:
+        main_dict[key] += merge_dict[key]
+    return main_dict
