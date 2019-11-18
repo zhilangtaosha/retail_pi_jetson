@@ -14,7 +14,7 @@ def face_clustering(np_feats):
     cluster = DBSCAN(eps=0.5, min_samples=2, metric='cosine').fit(np_feats)
     return cluster.labels_
 
-def cluster_raw_faces(feats, raw_data, max_img_per_person=3):
+def cluster_raw_faces(feats, raw_data, max_img_per_person=10, min_img_num=5):
     """
     return list of unique faces based on raw data
     """
@@ -46,6 +46,8 @@ def cluster_raw_faces(feats, raw_data, max_img_per_person=3):
         else:
             cli_feat_ids = np.asarray([0])
             chosen_ids = np.asarray([0])
+        if chosen_ids.shape[0] < min_img_num:
+            continue
         unique_faces.append(
             {
                 'person': [

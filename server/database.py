@@ -126,7 +126,45 @@ class FaceDatabase(object):
             for p in np['person']:
                 feats.append(p['feat'].tolist())
                 metadata += new_id + '\n'
-            feats = numpy.asarray(feats)
+            feats = numpy.asarray(feats, dtype=numpy.float32)
             metadata = metadata.encode()
+            print(metadata)
+            vector_db.add(feats, metadata)
+        return new_people
+
+    def addKnownFacesTree(self, new_people, vector_db):
+        """    
+        update database with new people data, SPTAG
+        """    
+        for j, np in enumerate(new_people):
+            new_face = {
+                'feats': [np['person'][i]['feat'].tolist() for i in range(len(np['person']))],
+                'age': np['age'],
+                'gender': np['gender'],
+                'create_time': time.time(),
+            }
+            # insert to Mongo
+            p_id = self.face_collection.insert_one(new_face).inserted_id
+            # commit changes
+            self.face_collection.update_one({'_id': p_id}, {"$set": new_face}, upsert=False)
+            # create account imgs dir
+            new_id = str(p_id)
+            print("new customer: ", new_id)
+            img_dir = os.path.join(self.customer_img_dir, new_id)
+            if not os.path.exists(img_dir):
+                os.mkdir(img_dir)
+            for i, p in enumerate(np['person']):
+                img_path = os.path.join(img_dir, f"{i}.jpg")
+                cv2.imwrite(img_path, p['face'])
+            new_people[j].update({'id': new_id})
+            # add to sptag tree
+            feats = []
+            metadata = ""
+            for p in np['person']:
+                feats.append(p['feat'].tolist())
+                metadata += new_id + '\n'
+            feats = numpy.asarray(feats, dtype=numpy.float32)
+            metadata = metadata.encode()
+            print(metadata)
             vector_db.add(feats, metadata)
         return new_people

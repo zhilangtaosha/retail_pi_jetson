@@ -137,16 +137,18 @@ class FaceDetection(object):
         bbox_collection_np = np.array(bbox_collection, dtype=np.float32)
         bbox_collection_np = bbox_collection_np / resize_scale
 
+        s = time.time()
         final_bboxes = NMS(bbox_collection_np, self.NMS_threshold)
+        print("NMS time: ", time.time() - s)
         # final_bboxes_ = []
         # for i in range(final_bboxes.shape[0]):
         #     final_bboxes_.append((final_bboxes[i, 0], final_bboxes[i, 1], final_bboxes[i, 2], final_bboxes[i, 3], final_bboxes[i, 4]))
         final_bboxes_ = [
-            (
+            [
                 final_bboxes[i, 0], final_bboxes[i, 1], 
                 final_bboxes[i, 2], final_bboxes[i, 3], 
                 final_bboxes[i, 4]
-            )
+            ]
             for i in range(final_bboxes.shape[0])
         ]
         return final_bboxes_

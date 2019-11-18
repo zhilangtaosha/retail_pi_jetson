@@ -24,7 +24,6 @@ class Xnet(object):
         using aiohttp
         """
         body_json = json.dumps({
-            'unique_faces': [],
             'raw_faces': unprocess_faces,
             'time': time.time()
         })

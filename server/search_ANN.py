@@ -24,17 +24,18 @@ class ANN(object):
         if os.path.exists(self.index_data):
             self.index = SPTAG.AnnIndex.Load(self.index_data)
         else:
+            # print(self.algo, self.data_type, self.dimensions)
             self.index = SPTAG.AnnIndex(self.algo, self.data_type, self.dimensions)
             self.index.SetBuildParam("NumberOfThreads", self.threads)
             self.index.SetBuildParam("DistCalcMethod", self.dist_method)
-            self.build(np.zeros((1, self.dimensions)), "0\n".encode())
+            self.build(np.ones((1, self.dimensions), dtype=np.float32), "0\n".encode())
 
     def build(self, data, metadata):
         if data.shape[1] != self.dimensions:
             print("Wrong data dimension", data.shape[1])
             return 1
         # if self.index.BuildWithMetaData(data, metadata, data.shape[0]):
-        print(data, data.shape)
+        # print(data, data.shape)
         if self.index.Build(data, data.shape[0]):
             self.index.Save(self.index_data)
             return 0
@@ -43,6 +44,7 @@ class ANN(object):
         return 1
 
     def add(self, data, metadata):
+        # print(data.shape)
         if data.shape[1] != self.dimensions:
             print("Wrong data dimension", data.shape[1])
             return 1
@@ -50,6 +52,7 @@ class ANN(object):
             self.index.Save(self.index_data)
             return 0
         else: 
+            print("add failed")
             return 1
 
     def delete(self, data):
@@ -83,12 +86,12 @@ class ANN(object):
             ranks = []
             for f in p['person']:
                 feats.append(f['feat'])
-            feats = np.asarray(feats)
+            feats = np.asarray(feats, dtype=np.float32)
             ret = self.search(feats)
 
             for result in ret:
                 idx, dist, metadata = result
-                print(idx, dist, metadata)
+                # print(idx, dist, metadata)
                 for i, d in enumerate(dist):
                     if d < self.threshold:
                         new_idx = 1
@@ -116,6 +119,7 @@ class ANN(object):
                     key=lambda i: (i['count'], i['dist']), 
                     reverse=True
                 )
+                print(ranks)
                 l_id = self.find_people(ranks[0]['meta'], known_people)
                 if l_id < 0:
                     # different people

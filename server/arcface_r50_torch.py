@@ -1,11 +1,9 @@
-import tensorrt as trt
 import cv2
 import numpy as np
-import os
-import base64, io
-import time
 import configparser
-import common
+import io, base64
+from torch2trt import TRTModule
+import torch
 
 
 class ArcFace(object):
@@ -15,53 +13,40 @@ class ArcFace(object):
         else:
             self.config = configparser.ConfigParser()
             self.config.read("config.ini")
-        self.model_path = self.config["ARCFACE"]['Model_path']
-        self.img_size = int(self.config["ARCFACE"]['Img_size'])
-        self.batch_size = int(self.config["ARCFACE"]['Batch_size'])
-        self.feat_size = int(self.config["ARCFACE"]['Feat_size'])
-        self.TRT_LOGGER = trt.Logger()
-        self.engine = self.getEngine()
-        self.context = self.engine.create_execution_context()
-        self.inputs, self.outputs, self.bindings, self.stream = common.allocate_buffers(self.engine)
+        self.model_path = self.config["ARCFACE_R50"]['Model_path']
+        self.img_size = int(self.config["ARCFACE_R50"]['Img_size'])
+        self.batch_size = int(self.config["ARCFACE_R50"]['Batch_size'])
+        self.feat_size = int(self.config["ARCFACE_R50"]['Feat_size'])
+        self.model = TRTModule()
+        self.model.load_state_dict(torch.load(self.model_path))
 
-
-    def getEngine(self):
-        if os.path.exists(self.model_path):
-            print("Reading engine from file {}".format(self.model_path))
-            with open(self.model_path, "rb") as f, trt.Runtime(self.TRT_LOGGER) as runtime:
-                return runtime.deserialize_cuda_engine(f.read())
-        else:
-            print("TensorRT engine file not found")
-            return None
-
-    def inference_batch(self, images, batch_size):
-        """
-        multi-batch inference
-        return numpy array
-        """
-        img_batch = np.zeros((batch_size, 3, self.img_size, self.img_size))
+    def inference_batch(self, images):
+        device=torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        x = torch.rand(self.batch_size, 3, self.img_size, self.img_size)
         for i, img in enumerate(images):
-            img = cv2.resize(img, (self.img_size, self.img_size))
-            img = img[..., ::-1] # BGR to RGB
-            img = img.transpose(2, 0, 1)
-            # img = (img - 127.5) / 128
-            img_batch[i] = img
+            resized = cv2.resize(img, (112, 112))
+            ccropped = resized[..., ::-1]  # BGR to RGB
+            # load numpy to tensor
+            ccropped = ccropped.transpose(2, 0, 1)
+            ccropped = np.array(ccropped, dtype=np.float32)
+            ccropped = (ccropped - 127.5) / 128.0
+            ccropped = torch.from_numpy(ccropped)
+            x[i] = ccropped
 
-        img_batch = np.array(img_batch, dtype=np.float32, order='C')
-        self.inputs[0].host = img_batch
-        feat_batch = common.do_inference(
-            self.context, 
-            bindings=self.bindings, 
-            inputs=self.inputs, 
-            outputs=self.outputs, 
-            stream=self.stream, 
-            batch_size=batch_size
-        )
-        feats = np.asarray([
-            feat_batch[0][i*self.feat_size:(i+1)*self.feat_size]
-            for i in range(batch_size)
-        ])
-        return feats
+        # extract features
+        with torch.no_grad():
+            feat = self.model(x.to(device))
+            feat = feat.cpu()
+            features = self.l2_norm(feat)
+        features = features.cpu().numpy()
+        return features[:len(images)]
+
+    def l2_norm(self, input, axis=1):
+        print(input)
+        print(input.shape)
+        norm = torch.norm(input, 2, axis, True)
+        output = torch.div(input, norm)
+        return output
 
     def inference(self, images):
         """
@@ -76,20 +61,19 @@ class ArcFace(object):
         # within batch size
         for i in range(queue_length):
             batch_imgs = images[i*self.batch_size:(i+1)*self.batch_size]
-            ret_feats[i*bs:(i+1)*bs, :] = self.inference_batch(batch_imgs, self.batch_size)
+            ret_feats[i*bs:(i+1)*bs, :] = self.inference_batch(batch_imgs)
 
         # handle batch margin
         margin = -int(len(images)%self.batch_size)
         if margin == 0:
             return ret_feats
         batch_imgs = images[margin:]
-        ret_feats[margin:] = self.inference_batch(batch_imgs, len(batch_imgs))
+        ret_feats[margin:] = self.inference_batch(batch_imgs)
         return ret_feats
 
     def extend_inference(self, unique_faces):
         """
         extend unique faces list with embedded feature for each face
-        TODO: optimize ugly loop code
         """
         if not unique_faces:
             return []

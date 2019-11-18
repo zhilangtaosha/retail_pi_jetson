@@ -63,10 +63,10 @@ def testDelete(index, x, out):
    ret = i.Delete(x, x.shape[0])
    print (ret)
    i.Save(out)
-   
+
 def Test(algo, distmethod):
-   x = np.ones((n, 10), dtype=np.float32) * np.reshape(np.arange(n, dtype=np.float32), (n, 1))
-   q = np.ones((r, 10), dtype=np.float32) * np.reshape(np.arange(r, dtype=np.float32), (r, 1)) * 2
+   x = np.ones((n, 512), dtype=np.float32) * np.reshape(np.arange(n, dtype=np.float32), (n, 1))
+   q = np.ones((r, 512), dtype=np.float32) * np.reshape(np.arange(r, dtype=np.float32), (r, 1)) * 2
    m = ''
    for i in range(n):
        m += str(i) + '\n'

@@ -22,6 +22,8 @@ class FaceDetection(object):
         self.img_height = int(self.config["FACE_DET"]['Img_height'])
         self.img_width_sm = int(self.config["FACE_DET"]['Img_width_sm'])
         self.img_height_sm = int(self.config["FACE_DET"]['Img_height_sm'])
+        self.img_width_min = int(self.config["FACE_DET"]['Img_width_min'])
+        self.img_height_min = int(self.config["FACE_DET"]['Img_height_min'])
         self.canvas_col = int(self.config["FACE_DET"]['Canvas_col'])
         self.canvas_row = int(self.config["FACE_DET"]['Canvas_row'])
         self.batch_size = int(self.config["FACE_DET"]['Batch_size'])
@@ -193,7 +195,7 @@ class FaceDetection(object):
                 i = np.floor(x0/self.img_width_sm)
                 j = np.floor(y0/self.img_height_sm)
                 img_id = int(c*img_per_canvas+i*self.canvas_row+j)
-                if img_id < img_num:
+                if (img_id < img_num) and (y1-y0 > self.img_height_min) and (x1-x0 > self.img_width_min):
                     face_crop = canvas[y0:y1, x0:x1, :]
                     cv2.imwrite(f"images/debug/{c}_{bid}.jpg", face_crop)
                     # print(face_crop.shape)
@@ -204,4 +206,5 @@ class FaceDetection(object):
                             'face_crop': face_crop
                         }
                     )
+            cv2.imwrite(f"images/debug/canvas/{c}.jpg", canvas)
         return ret_imgs, ret_imgs_info
