@@ -34,9 +34,9 @@ class ANN(object):
         if data.shape[1] != self.dimensions:
             print("Wrong data dimension", data.shape[1])
             return 1
-        # if self.index.BuildWithMetaData(data, metadata, data.shape[0]):
+        if self.index.BuildWithMetaData(data, metadata, data.shape[0], p_withMetaIndex=True):
         # print(data, data.shape)
-        if self.index.Build(data, data.shape[0]):
+        # if self.index.Build(data, data.shape[0]):
             self.index.Save(self.index_data)
             return 0
         else:
@@ -81,7 +81,7 @@ class ANN(object):
         new_people = []
 
         for p in face_clusters:
-            best_match = None
+            # best_match = None
             feats = []
             ranks = []
             for f in p['person']:
@@ -91,7 +91,7 @@ class ANN(object):
 
             for result in ret:
                 idx, dist, metadata = result
-                # print(idx, dist, metadata)
+                print(idx, dist, metadata)
                 for i, d in enumerate(dist):
                     if d < self.threshold:
                         new_idx = 1
@@ -105,7 +105,7 @@ class ANN(object):
                                 {
                                     'idx': idx[i],
                                     'dist': d,
-                                    'meta': metadata[i].decode(),
+                                    'meta': metadata[i].decode()[:-1], # discard the '\n' at the end
                                     'count': 1
                                 }
                             )
@@ -123,7 +123,7 @@ class ANN(object):
                 l_id = self.find_people(ranks[0]['meta'], known_people)
                 if l_id < 0:
                     # different people
-                    p.update({'id': best_match})
+                    p.update({'id': ranks[0]['meta']})
                     known_people.append(p)
                 else:
                     # same person

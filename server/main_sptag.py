@@ -152,7 +152,7 @@ async def log_faces(item: Miris_raw):
 
     feats = face_embed.inference(raw_faces_center)
     print("arcface time", time.time() - s)
-    refined_unique_faces = cluster_raw_faces(feats, item.raw_faces, len(feats))
+    refined_unique_faces = cluster_raw_faces(feats, item.raw_faces)
     s = time.time()
     # database search 
     known_people, new_people = vector_db.face_search(refined_unique_faces)
@@ -168,13 +168,12 @@ async def log_faces(item: Miris_raw):
         print("gender", new_people[0]['gender'])
 
     # # extend face database with unidentified people
-    FDC.addNewFacesTree(new_people, vector_db)
+    new_people = FDC.addNewFacesTree(new_people, vector_db)
     # TODO: update old customer with new faces, based on some criteria
-    # FDC.updateKnownFacesTree(known_people, vector_db)
+    FDC.updateKnownFacesTree(known_people, vector_db)
 
     # # log unique people 
     FDC.newPeopleLog(known_people, new_people)
-
 
     item_dict = {
         'total_upload_raw_faces': len(item.raw_faces),

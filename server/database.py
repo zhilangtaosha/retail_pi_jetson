@@ -6,6 +6,7 @@ import numpy
 import configparser
 sys.path.append("/sptag/SPTAG/Release")
 import SPTAG
+from bson import ObjectId
 
 class FaceDatabase(object):
     def __init__(self, parent=None):
@@ -122,49 +123,59 @@ class FaceDatabase(object):
             new_people[j].update({'id': new_id})
             # add to sptag tree
             feats = []
-            metadata = ""
+            metadata = ''
             for p in np['person']:
                 feats.append(p['feat'].tolist())
                 metadata += new_id + '\n'
+                # metadata += str(1) + '\n'
             feats = numpy.asarray(feats, dtype=numpy.float32)
             metadata = metadata.encode()
-            print(metadata)
+            # print(metadata)
             vector_db.add(feats, metadata)
         return new_people
 
-    def addKnownFacesTree(self, new_people, vector_db):
+    def updateKnownFacesTree(self, known_people, vector_db, max_faces=100):
         """    
-        update database with new people data, SPTAG
+        update database with known people new data, SPTAG
         """    
-        for j, np in enumerate(new_people):
-            new_face = {
-                'feats': [np['person'][i]['feat'].tolist() for i in range(len(np['person']))],
-                'age': np['age'],
-                'gender': np['gender'],
-                'create_time': time.time(),
-            }
-            # insert to Mongo
-            p_id = self.face_collection.insert_one(new_face).inserted_id
-            # commit changes
-            self.face_collection.update_one({'_id': p_id}, {"$set": new_face}, upsert=False)
+        for j, np in enumerate(known_people):
+            acc = self.face_collection.find_one({'_id': ObjectId(np['id'])})
+            if acc is None:
+                print("account missing")
+                return 1
+            new_feats = [np['person'][i]['feat'].tolist() for i in range(len(np['person']))]
+            old_feat_coll_size = len(acc['feats'])
+            acc['feats'] += new_feats
+            delete_feats = acc['feats'][:-max_faces]
+            print("old feats num: ", old_feat_coll_size)
+            print("new feats num: ", len(new_feats))
+            print("delete feats num: ", len(delete_feats))
+            acc['feats'] = acc['feats'][-max_faces:]
+            acc.update({'modified_time': time.time()})
+            # update mongodb
+            ret = self.face_collection.update_one(
+                {'_id':acc['_id']}, 
+                {"$set": acc}, 
+                upsert=False
+            )
             # create account imgs dir
-            new_id = str(p_id)
-            print("new customer: ", new_id)
-            img_dir = os.path.join(self.customer_img_dir, new_id)
+            img_dir = os.path.join(self.customer_img_dir, np['id'])
             if not os.path.exists(img_dir):
                 os.mkdir(img_dir)
             for i, p in enumerate(np['person']):
-                img_path = os.path.join(img_dir, f"{i}.jpg")
+                img_path = os.path.join(img_dir, f"{(i+old_feat_coll_size)%max_faces}.jpg")
                 cv2.imwrite(img_path, p['face'])
-            new_people[j].update({'id': new_id})
             # add to sptag tree
-            feats = []
             metadata = ""
-            for p in np['person']:
-                feats.append(p['feat'].tolist())
-                metadata += new_id + '\n'
-            feats = numpy.asarray(feats, dtype=numpy.float32)
+            for nf in new_feats:
+                metadata += np['id'] + '\n'
+            # print(metadata)
+            # add new vectors
+            new_feats_np = numpy.asarray(new_feats, dtype=numpy.float32)
             metadata = metadata.encode()
-            print(metadata)
-            vector_db.add(feats, metadata)
-        return new_people
+            vector_db.add(new_feats_np, metadata)
+            # delete discarded vectors
+            if len(delete_feats):
+                delete_feats_np = numpy.asarray(delete_feats, dtype=numpy.float32)
+                vector_db.delete(delete_feats_np)
+        return 0
